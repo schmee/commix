@@ -742,3 +742,21 @@ If this condition is not satisfied action is not performed (silently)."}
   [system & [paths]]
   (let [deps (dependents system paths)]
     (run-path-action system deps suspend-path)))
+
+(defmacro defcom [proto & body]
+  (let [methods
+        (into {}
+          (for [[state [binding impl]] (partition 2 body)]
+            [state {:binding binding :impl impl}]))
+        init-map (:init methods)
+        halt-fn
+        (when-let [halt-map (:halt methods)]
+          `[(defmethod
+              halt-com
+              ~proto
+              [~(hash-map (-> halt-map :binding first) :cx/value)]
+              ~(:impl halt-map))])]
+    `(do
+       (defmethod init-com ~proto ~(:binding init-map) ~(:impl init-map))
+       ~@halt-fn)))
+
